@@ -1,9 +1,8 @@
 # data.py
-# Purpose:
-#   - Download 15 years of daily Adj Close from Yahoo Finance for 30 assets
+
+#   - Download 15 years of daily Adj Close from Yahoo Finance for 50 assets
 #   - Clean/align the panel (short ffill/bfill, drop remaining NaNs)
 #   - Chronological split: 60% Train, 20% Test, 20% Validation
-
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -20,7 +19,9 @@ import yfinance as yf
 TICKERS = [
     "KO","PEP","KDP","MNST","PG","CL","KMB","CLX","EL","CHD",
     "K","GIS","MDLZ","KHC","HSY","CAG","CPB","SJM","HRL","WMT",
-    "COST","TGT","KR","SYY","ADM","TSN","MKC","BF-B","MO","PM"
+    "COST","TGT","KR","SYY","ADM","TSN","MKC","BF-B","MO","PM",
+    "DEO","TAP","SAM","NSRGY","UL","BUD","NKE","DIS","MCD","SBUX",
+    "YUM","HD","LOW","EBAY","AMZN","WBA","DG","DLTR","TJX","WMT"
 ]
 
 # 15-year window
