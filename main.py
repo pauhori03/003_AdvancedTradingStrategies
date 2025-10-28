@@ -34,10 +34,24 @@ art_train = gs["artifacts"]   # in-sample artifacts for plots (beta/spread/signa
 print("\n[TRAIN] Best Θ found:", best)
 
 # ====== 3) Evaluate Θ* on TEST and VALID ======
-art_test  = evaluate_theta(test_x,  test_y, best["entry_z"], best["exit_z"], best["q"], best["r"],
-                           cash_start=1_000_000.0, cash_alloc=0.50)
-art_valid = evaluate_theta(valid_x, valid_y, best["entry_z"], best["exit_z"], best["q"], best["r"],
-                           cash_start=1_000_000.0, cash_alloc=0.50)
+cash_start_test = float(art_train["equity"].iloc[-1])
+
+art_test = evaluate_theta(
+    test_x, test_y,
+    best["entry_z"], best["exit_z"], best["q"], best["r"],
+    cash_start=cash_start_test,          # ← inicia donde terminó TRAIN
+    cash_alloc=0.50
+)
+
+# Ahora el VALID inicia con el equity final de TEST.
+cash_start_valid = float(art_test["equity"].iloc[-1])
+
+art_valid = evaluate_theta(
+    valid_x, valid_y,
+    best["entry_z"], best["exit_z"], best["q"], best["r"],
+    cash_start=cash_start_valid,         # ← inicia donde terminó TEST
+    cash_alloc=0.50
+)
 
 
 # ====== 4) Print metrics ======
@@ -58,30 +72,10 @@ report("TRAIN (in-sample, FYI)", art_train)
 report("TEST (OOS)", art_test)
 report("VALID (OOS final)", art_valid)
 
-# 1) Spread + Z-bands (usa los Θ óptimos encontrados en TRAIN)
-entry_z = best["entry_z"]
-exit_z  = best["exit_z"]
-
-plot_spread_with_zbands(art_train, entry_z=entry_z, exit_z=exit_z, z_window=60,
-                        title="TRAIN — Spread & Z-bands")
-plot_beta(art_train, title="TRAIN — Hedge ratio β_t")
-
-plot_spread_with_zbands(art_test, entry_z=entry_z, exit_z=exit_z, z_window=60,
-                        title="TEST — Spread & Z-bands")
-plot_beta(art_test, title="TEST — Hedge ratio β_t")
-
-plot_spread_with_zbands(art_valid, entry_z=entry_z, exit_z=exit_z, z_window=60,
-                        title="VALID — Spread & Z-bands")
-plot_beta(art_valid, title="VALID — Hedge ratio β_t")
 
 # 2) Equity curves overlay
 plot_equity_curves(art_train["equity"], art_test["equity"], art_valid["equity"],
                    title="Equity — TRAIN / TEST / VALID")
-
-# 3) Trade return distribution (muestra por periodo)
-plot_trade_return_hist(art_train, title="TRAIN — Per-trade returns")
-plot_trade_return_hist(art_test,  title="TEST — Per-trade returns")
-plot_trade_return_hist(art_valid, title="VALID — Per-trade returns")
 
 plt.show()  # <- show all figures at the end
 
