@@ -21,7 +21,7 @@ TICKERS = [
     "K","GIS","MDLZ","KHC","HSY","CAG","CPB","SJM","HRL","WMT",
     "COST","TGT","KR","SYY","ADM","TSN","MKC","BF-B","MO","PM",
     "DEO","TAP","SAM","NSRGY","UL","BUD","NKE","DIS","MCD","SBUX",
-    "YUM","HD","LOW","EBAY","AMZN","WBA","DG","DLTR","TJX","WMT"
+    "YUM","HD","LOW","EBAY","AMZN","WBA","DG","DLTR","TJX","BBY"
 ]
 
 # 15-year window
