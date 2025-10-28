@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+# ================================================================
+# 1. Equity Curves
+# ================================================================
 def plot_equity_curves(
     eq_train: pd.Series = None,
     eq_test: pd.Series = None,
@@ -27,10 +30,17 @@ def plot_equity_curves(
     plt.show()
 
 
-def plot_kalman_beta(kalman_df: pd.DataFrame):
+# ================================================================
+# 2. Kalman β_t
+# ================================================================
+def plot_kalman_beta(kalman_df: pd.DataFrame, start_date: str = "2014-01-01"):
     """Plot dynamic hedge ratio (beta_t) from Kalman Filter."""
+    # Expand to start from 2014 for consistency
+    full_index = pd.date_range(start=start_date, end=kalman_df.index[-1], freq="B")
+    kalman_df = kalman_df.reindex(full_index).ffill()
+
     plt.figure(figsize=(10, 4))
-    plt.plot(kalman_df["beta"], color="orange", label="Kalman β_t")
+    plt.plot(kalman_df.index, kalman_df["beta"], color="orange", label="Kalman β_t")
     plt.title("Dynamic Hedge Ratio (Kalman Filter)")
     plt.xlabel("Date")
     plt.ylabel("β_t")
@@ -40,10 +50,19 @@ def plot_kalman_beta(kalman_df: pd.DataFrame):
     plt.show()
 
 
+# ================================================================
+# 3. Pair Prices with Trading Signals
+# ================================================================
 def plot_signals(px_x: pd.Series, px_y: pd.Series, signal: pd.Series):
     """Overlay entry/exit signals on both assets' price series."""
     plt.figure(figsize=(10, 4))
     
+    # Align all to full range (since 2014)
+    common_index = px_x.index.union(px_y.index).union(signal.index)
+    px_x = px_x.reindex(common_index).ffill()
+    px_y = px_y.reindex(common_index).ffill()
+    signal = signal.reindex(common_index).fillna(0)
+
     # Plot prices
     plt.plot(px_x, label="Asset X", color="dodgerblue")
     plt.plot(px_y, label="Asset Y", color="coral", alpha=0.8)
@@ -74,9 +93,18 @@ def plot_signals(px_x: pd.Series, px_y: pd.Series, signal: pd.Series):
     plt.show()
 
 
+# ================================================================
+# 4. Spread + Entry/Exit Thresholds
+# ================================================================
 def plot_spread_signals(px_x: pd.Series, px_y: pd.Series, beta: pd.Series,
                         entry_z: float, exit_z: float, z_window: int = 60):
     """Plot the spread with entry/exit thresholds and signals."""
+
+    # Align all to full range (since 2014)
+    common_index = px_x.index.union(px_y.index).union(beta.index)
+    px_x = px_x.reindex(common_index).ffill()
+    px_y = px_y.reindex(common_index).ffill()
+    beta = beta.reindex(common_index).ffill()
 
     # Dynamic spread with Kalman beta_t
     spread = px_y - beta * px_x
@@ -124,4 +152,5 @@ def plot_spread_signals(px_x: pd.Series, px_y: pd.Series, beta: pd.Series,
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
     plt.show()
+
 

@@ -21,8 +21,8 @@ def run_backtest(
     days_in_year: int = 252
 ):
     # Numeric safeguards
-    price_floor = 1e-6   # never divide by (almost) zero price
-    beta_cap    = 50.0   # cap hedge ratio to a reasonable range
+    price_floor = 1e-6   
+    beta_cap    = 50.0  
 
     # Basic checks and common index
     assert list(px_x.index) == list(px_y.index) == list(beta.index) == list(signal.index)
