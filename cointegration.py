@@ -1,9 +1,9 @@
 # cointegration.py
 
-#   - Confirm cointegration among screened pairs using Engle–Granger on TRAIN only
-#   - Project rules:
-#       (1) Each price series is NON-stationary (ADF p > 0.05)
-#       (2) Residual from OLS(S1 ~ 1 + S2) IS stationary (ADF p_res < 0.05)
+# Checks if two assets are cointegrated using the Engle–Granger method.
+# Logic:
+#   (1) Each price series should NOT be stationary (ADF p > 0.05)
+#   (2) The residual from OLS(S1 ~ 1 + S2) should BE stationary (ADF p < 0.05)
 
 
 import warnings
@@ -18,17 +18,17 @@ import statsmodels.api as sm
 # Defaults for __main__
 USE_LOG = True
 ALPHA   = 0.05
-CORR_WIN = 252      # for reporting mean corr in table (same window as screen)
+CORR_WIN = 252      # 1 year window for mean rolling correlation
 TOP_K   = 10
 
 
 def engle_granger_check(df_two_cols: pd.DataFrame, alpha: float = 0.05, use_log: bool = True) -> dict:
     """
-    Engle–Granger cointegration check:
-      (1) Individual series are NON-stationary in levels: ADF p > alpha
-      (2) Residual of OLS(S1 ~ 1 + S2) IS stationary: ADF p_res < alpha
-
-    Returns a dict with ADF p-values, OLS params (w0, w1), and pass boolean.
+    Runs the Engle–Granger test for a pair of assets.
+    Steps:
+      1. Test both series for stationarity (ADF test)
+      2. Run OLS regression S1 ~ S2
+      3. Test the residuals for stationarity
     """
     if df_two_cols.shape[1] != 2:
         raise ValueError("Expect exactly 2 columns (two assets).")
@@ -72,9 +72,8 @@ def rank_passing_pairs(
     corr_win_for_report: int = 252
 ) -> pd.DataFrame:
     """
-    Run Engle–Granger on correlation-screened candidates only.
-    Rank passing pairs by (low ADF_p_res first, then high mean rolling corr).
-    Returns a DataFrame with top_k passing pairs and metrics.
+    Applies the Engle–Granger test to all candidate pairs.
+    Keeps only those that pass, and sorts by best residual p-value and correlation.
     """
     rows = []
     for _, r in candidates_df.iterrows():
@@ -98,7 +97,7 @@ def rank_passing_pairs(
 
 
 if __name__ == "__main__":
-    # Standalone path: build TRAIN, run corr screen, then Engle–Granger ranking
+     # Test script: build TRAIN, run correlation screen, then Engle–Granger
     from data import download_adj_close, clean_align_panel, chronological_split, TICKERS, START, END
     from corr_screen import screen_pairs_by_corr, USE_LOG as USE_LOG_CORR, CORR_WIN, CORR_THRES
 

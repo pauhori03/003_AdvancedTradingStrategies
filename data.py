@@ -1,8 +1,8 @@
 # data.py
-
-#   - Download 15 years of daily Adj Close from Yahoo Finance for 50 assets
-#   - Clean/align the panel (short ffill/bfill, drop remaining NaNs)
-#   - Chronological split: 60% Train, 20% Test, 20% Validation
+# This file handles all data preparation steps:
+#  - Download daily adjusted prices from Yahoo Finance
+#  - Clean missing values and align all assets
+#  - Split the full dataset into Train / Test / Validation periods
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -12,8 +12,11 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+
+
 # Configuration
 
+# Selected assets from different industries
 
 TICKERS = [
     "JPM","BAC","C","GS","MS","WFC","USB","PNC","BK","SCHW",
@@ -23,20 +26,19 @@ TICKERS = [
     "NKE","DIS","MCD","SBUX","TGT","COST","PG","CL","KMB","KO"
 ]
 
-
 # 15-year window
 today = date.today()
 START = "2010-01-01"
 END   = None  #  Today by default in yfinance
 
-# Short-gap fill limits to smooth minor calendar mismatches (holidays, etc.)
+# Small fill limits to handle holidays or short gaps
 FFILL_LIMIT = 5
 BFILL_LIMIT = 5
 
 def download_adj_close(tickers, start, end):
     """
-    Download daily panel from Yahoo Finance and extract Adj Close in wide format.
-    Returns a DataFrame indexed by date with columns per ticker.
+    Downloads daily adjusted close prices for all tickers.
+    Returns a DataFrame with one column per asset.
     """
     raw = yf.download(
         tickers, start=start, end=end, interval="1d",
@@ -44,7 +46,7 @@ def download_adj_close(tickers, start, end):
         auto_adjust=False
     )
 
-    # yfinance often returns a MultiIndex: level0=ticker, level1=field ("Adj Close")
+   # Extract only the "Adj Close" values from the multi-index
     if isinstance(raw.columns, pd.MultiIndex):
         cols = {}
         for t in tickers:
@@ -60,7 +62,7 @@ def download_adj_close(tickers, start, end):
         if prices is None:
             raise ValueError("Could not find 'Adj Close' in the download.")
 
-    # Sort by date and drop duplicate index entries (defensive)
+    # Sort by date and remove duplicates
     prices = prices.sort_index()
     prices.index = pd.to_datetime(prices.index)
     prices = prices[~prices.index.duplicated(keep="first")]
@@ -68,10 +70,10 @@ def download_adj_close(tickers, start, end):
 
 def clean_align_panel(df, ffill_limit=5, bfill_limit=5):
     """
-    Handle missing data:
-      - Short forward/backward fill to patch small gaps
-      - Drop any remaining rows with NaNs (fully aligned final panel)
-      - Remove columns with (near) zero variance (bad or flat series)
+    Cleans and aligns the dataset:
+      - Fills small gaps forward/backward
+      - Drops remaining missing values
+      - Removes flat or invalid series
     """
     clean = df.ffill(limit=ffill_limit).bfill(limit=bfill_limit)
     clean = clean.dropna(how="any")
@@ -80,8 +82,8 @@ def clean_align_panel(df, ffill_limit=5, bfill_limit=5):
 
 def chronological_split(df, train_ratio=0.6, test_ratio=0.2):
     """
-    Time-based split: 60% train, 20% test, 20% validation (no look-ahead).
-    Returns (train, test, valid).
+    Splits the data chronologically:
+      60% Train, 20% Test, 20% Validation.
     """
     n = len(df)
     i_tr = int(n * train_ratio)

@@ -1,6 +1,7 @@
 # kalman_filter.py
 
-# Minimal 2D Kalman filter to estimate dynamic hedge ratio (beta_t) and intercept (alpha_t).
+# Simple Kalman filter to estimate a changing hedge ratio (beta_t) and intercept (alpha_t)
+# The filter updates these values over time based on new price information.
 # State:      x_t = [beta_t, alpha_t]^T
 # Transition: x_t = x_{t-1} + w_{t-1},  w ~ N(0, Q = q * I)
 # Measure:    0 = y_t - beta_t * x_t - alpha_t + v_t,  v ~ N(0, R = r)
@@ -12,12 +13,12 @@ import pandas as pd
 def run_kalman(
     px_x: pd.Series,
     px_y: pd.Series,
-    q: float = 1e-6,      # process-noise variance (how fast beta/alpha can move)
-    r: float = 1e-2,      # observation-noise variance (confidence in spread)
+    q: float = 1e-6,      # how much beta/alpha can change each step
+    r: float = 1e-2,      # how much we trust the price relationship
     x0_beta: float = 1.0,
     x0_alpha: float = 0.0,
-    p0: float = 1e-2,     # initial covariance scale
-    eps: float = 1e-12,   # tiny floor to avoid divisions by ~0
+    p0: float = 1e-2,      # initial uncertainty
+    eps: float = 1e-12,   # avoids dividing by zero
     use_log: bool = True,
     beta_cap: float = 10.0  # safety cap for beta
 ) -> pd.DataFrame:
@@ -37,7 +38,7 @@ def run_kalman(
 
     # --- Recursion over time ---
     for xv, yv in zip(px_x.values, px_y.values):
-        # Optionally stabilize with log-prices (consistent con tu proyecto)
+        # Optionally stabilize with log-prices 
         x_val = float(xv)
         y_val = float(yv)
         if use_log:

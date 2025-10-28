@@ -1,11 +1,11 @@
 # optimize.py
 
-#   Search the best policy Θ = {entry_z, exit_z, q, r} on TRAIN.
-# Pipeline per Θ:
-#   1) Kalman -> beta_t, spread
-#   2) Z-score signals -> {-1, 0, +1}
-#   3) Backtest (fees + borrow) -> equity
-#   4) Score = Calmar(equity)
+# Tests different parameter combinations for the strategy
+# Each combination (entry_z, exit_z, q, r) is evaluated as:
+#   1) Run Kalman filter → beta_t and spread
+#   2) Generate trading signals based on Z-scores
+#   3) Run backtest (includes fees and borrow)
+#   4) Score each result using Calmar ratio
 
 import numpy as np
 import pandas as pd
@@ -15,8 +15,6 @@ from kalman_filter import run_kalman
 from signals import generate_signals
 from backtest import run_backtest
 
-
-# ---------- small helpers ----------
 
 def _safe_calmar(equity: pd.Series) -> float:
     """Compute Calmar ratio robustly. Return -inf if not computable."""
@@ -50,7 +48,7 @@ def _empty_artifacts() -> dict:
     }
 
 
-# ---------- evaluation of one Θ on TRAIN ----------
+#  evaluation of one Θ on TRAIN 
 
 def evaluate_theta(
     train_x: pd.Series,
@@ -64,13 +62,14 @@ def evaluate_theta(
     z_window: int = 60
 ) -> dict:
     """
-    One evaluation of Θ on TRAIN:
-      Kalman -> Signals -> Backtest -> Calmar score.
-    Robustness:
-      - Align X/Y, drop NaNs and Infs early
-      - Guard against degenerate spread/beta
+    Tests one combination of parameters on the training data.
+    Steps:
+      1. Use Kalman filter to estimate dynamic hedge ratio and spread
+      2. Generate buy/sell signals using Z-score levels
+      3. Backtest to see how equity evolves
+      4. Evaluate performance using Calmar ratio
     """
-    # 0) Align raw prices and drop missing/invalid rows
+    # Clean and align both price series
     df_xy = pd.concat([train_x.rename("X"), train_y.rename("Y")], axis=1)
     df_xy = df_xy.replace([np.inf, -np.inf], np.nan).dropna()
     if df_xy.empty:
@@ -79,10 +78,10 @@ def evaluate_theta(
     x = df_xy["X"]
     y = df_xy["Y"]
 
-    # 1) Kalman: dynamic hedge & spread (stabilized version)
+    # Run Kalman filter
     kres = run_kalman(x, y, q=q, r=r, use_log=True)
 
-    # Validaciones simples para asegurar datos válidos
+    # Basic validation
     if ("spread" not in kres) or ("beta" not in kres):
         return _empty_artifacts()
     if not np.isfinite(kres["spread"]).all() or float(kres["spread"].var()) < 1e-12:
@@ -90,7 +89,7 @@ def evaluate_theta(
     if not np.isfinite(kres["beta"]).all():
         return _empty_artifacts()
 
-    # 2) Señales a partir del spread de Kalman
+    # Generate signals
     sig = generate_signals(
         kres["spread"],
         entry_z=entry_z,
@@ -98,7 +97,7 @@ def evaluate_theta(
         z_window=z_window
     )
 
-    # 3) Align everything and purge non-finite values BEFORE backtest
+    # Combine all and drop missing values
     df_all = pd.concat(
         [x.rename("px_x"),
          y.rename("px_y"),
@@ -110,7 +109,7 @@ def evaluate_theta(
     if df_all.empty:
         return _empty_artifacts()
 
-    # 4) Backtest
+    # Backtest
     equity, _positions, trades, beta_series, summary = run_backtest(
         px_x=df_all["px_x"],
         px_y=df_all["px_y"],
@@ -124,7 +123,7 @@ def evaluate_theta(
     if equity.empty or not np.isfinite(equity).all():
         return _empty_artifacts()
 
-    # 5) Score (Calmar)
+    # Score with Calmar ratio
     score = _safe_calmar(equity)
 
     return {
@@ -138,7 +137,7 @@ def evaluate_theta(
     }
 
 
-# ---------- grid search on TRAIN ----------
+# Full Grid Search on TRAIN
 
 def grid_search_train(
     train_x: pd.Series,
@@ -153,7 +152,10 @@ def grid_search_train(
     cash_alloc: float = 0.80,
     z_window: int = 60
 ) -> dict:
-    """Exhaustive grid search on TRAIN."""
+    """
+    Runs a grid search over multiple parameter combinations.
+    Finds the one with the best Calmar ratio on the training set.
+    """
     best = None
     best_artifacts = None
 
@@ -167,7 +169,7 @@ def grid_search_train(
             best = {"entry_z": ez, "exit_z": xz, "q": qv, "r": rv, "score": out["score"]}
             best_artifacts = out
 
-    # Si nada fue válido, devolver un fallback seguro
+   # Default result if nothing worked
     if best is None:
         best = {"entry_z": 2.0, "exit_z": 0.5, "q": 1e-5, "r": 1e-2, "score": float("-inf")}
         best_artifacts = _empty_artifacts()
