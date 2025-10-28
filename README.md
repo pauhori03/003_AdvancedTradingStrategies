@@ -14,7 +14,7 @@ The workflow includes:
 - Performance evaluation (Sharpe, Sortino, Calmar, Max Drawdown)
 
 ## Folder Structure
-
+```
 003_AdvancedTradingStrategies/
 │
 ├── .gitignore                                # Ignore virtual environments, caches, local backups
@@ -35,6 +35,7 @@ The workflow includes:
 ├── signals.py                                # Signal generation based on spread Z-score logic
 ├── equity.png                                # Sample equity curve (TRAIN / TEST / VALID visualization)
 └── APPENDIX_RESULTS.xlsx                     # Quantitative appendix used for written report
+```
 
 ## Methodology Summary
 
