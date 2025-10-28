@@ -37,16 +37,37 @@ def run_backtest(
     equity_vals = []
     pos_rows = []
     trade_rows = []
+    beta_vals = []
+
 
     EPS_TRADE = 1e-8  # ignore tiny re-hedges due to float noise
     
 
     for t, dt in enumerate(idx):
-        s = int(signal.iloc[t])     # -1, 0, +1
-        b = float(beta.iloc[t])     # hedge ratio
-        b = float(np.clip(b, -beta_cap, beta_cap))
-        x = max(float(px_x.iloc[t]), price_floor)     # price X
-        y = max(float(px_y.iloc[t]), price_floor)     # price Y
+        sig = int(signal.iloc[t])     
+        x = max(float(px_x.iloc[t]), price_floor)
+        y = max(float(px_y.iloc[t]), price_floor)
+
+        if t == 0:
+            beta_k, alpha_k = 1.0, 0.0
+            p11, p12, p21, p22 = 1e-2, 0.0, 0.0, 1e-2
+            q, r = 1e-6, 1e-2
+        else:
+            x_val = np.log(max(x, 1e-8))
+            y_val = np.log(max(y, 1e-8))
+            resid = y_val - (beta_k * x_val + alpha_k)
+
+            S_innov = (p11 * x_val**2 + 2 * p12 * x_val + p22 + r)
+            k1 = (p11 * x_val + p12) / S_innov
+            k2 = (p21 * x_val + p22) / S_innov
+
+            beta_k += k1 * resid
+            alpha_k += k2 * resid
+            p11 = p11 + q - k1 * (p11 * x_val + p12)
+            p12 = p12 - k1 * (p12 * x_val + p22)
+            p21 = p21 - k2 * (p11 * x_val + p12)
+            p22 = p22 + q - k2 * (p12 * x_val + p22)
+        b = float(np.clip(beta_k, -beta_cap, beta_cap))
 
         # Borrow cost on yesterday's short leg
         short_notional = 0.0
@@ -60,24 +81,17 @@ def run_backtest(
         # Target position based on signal (self-financed, fixed gross = deploy)
         equity_pre = cash + qty_x * x + qty_y * y
         deploy = cash_alloc * equity_pre
-        # split gross between legs in proportion 1 : |b|
         den = (abs(b) + 1.0)
-        k = deploy / den                     # dollars assigned to the Y leg (in abs value)
+        k = deploy / den
 
-        if s == 0:
+        if sig == 0:
             tgt_x, tgt_y = 0.0, 0.0
-
-        elif s == +1:
-            # short spread: short Y, long beta*X
-            # |notional_y| = k, |notional_x| = k*|b|
-            tgt_y = - k / y
-            tgt_x = + (k * b) / x            # sign(b) respected automatically
-
-        else:  # s == -1
-            # long spread: long Y, short beta*X
-            tgt_y = + k / y
+        elif sig == +1:
+            tgt_y = -k / y
+            tgt_x = + (k * b) / x
+        else: 
+            tgt_y = +k / y
             tgt_x = - (k * b) / x
-
 
         # Trades to reach target
         dqx = tgt_x - qty_x
@@ -102,10 +116,12 @@ def run_backtest(
         # End-of-day equity
         equity = cash + qty_x * x + qty_y * y
         equity_vals.append(equity)
+        beta_vals.append(b)
+
 
         # Logs
         trade_rows.append({
-            "date": dt, "signal": s,
+            "date": dt, "signal": sig,
             "d_qty_x": dqx, "d_qty_y": dqy,
             "price_x": x, "price_y": y,
             "notional_x": notional_x, "notional_y": notional_y,
@@ -125,4 +141,6 @@ def run_backtest(
         "total_commission": float(trades["commission"].sum())
     }
 
-    return equity_series, positions, trades, summary
+    beta_series = pd.Series(beta_vals, index=idx, name="beta")
+
+    return equity_series, positions, trades, beta_series, summary

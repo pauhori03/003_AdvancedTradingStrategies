@@ -1,4 +1,5 @@
 # kalman_filter.py
+
 # Minimal 2D Kalman filter to estimate dynamic hedge ratio (beta_t) and intercept (alpha_t).
 # State:      x_t = [beta_t, alpha_t]^T
 # Transition: x_t = x_{t-1} + w_{t-1},  w ~ N(0, Q = q * I)
@@ -6,6 +7,7 @@
 
 import numpy as np
 import pandas as pd
+
 
 def run_kalman(
     px_x: pd.Series,

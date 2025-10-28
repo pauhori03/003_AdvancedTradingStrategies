@@ -1,5 +1,5 @@
 # optimize.py
-
+# Goal:
 #   Search the best policy Θ = {entry_z, exit_z, q, r} on TRAIN.
 # Pipeline per Θ:
 #   1) Kalman -> beta_t, spread
@@ -80,9 +80,11 @@ def evaluate_theta(
     y = df_xy["Y"]
 
     # 1) Kalman: dynamic hedge & spread (stabilized version)
-    kres = run_kalman(x, y, q=q, r=r, use_log=True)
+    # IMPORTANT: if your run_kalman signature does NOT support use_log/beta_cap,
+    # remove those two kwargs from the call below.
+    kres = run_kalman(x, y, q=q, r=r, use_log=True, beta_cap=10.0)  # ['beta','alpha','spread']
 
-    # Validaciones simples para asegurar datos válidos
+    # Quick sanity: if spread variance is ~zero or beta non-finite -> discard
     if ("spread" not in kres) or ("beta" not in kres):
         return _empty_artifacts()
     if not np.isfinite(kres["spread"]).all() or float(kres["spread"].var()) < 1e-12:
@@ -90,18 +92,12 @@ def evaluate_theta(
     if not np.isfinite(kres["beta"]).all():
         return _empty_artifacts()
 
-    # 2) Señales a partir del spread de Kalman
-    sig = generate_signals(
-        kres["spread"],
-        entry_z=entry_z,
-        exit_z=exit_z,
-        z_window=z_window
-    )
+    # 2) Signals (Z-score on spread)
+    sig = generate_signals(kres["spread"], entry_z=entry_z, exit_z=exit_z, z_window=z_window)
 
     # 3) Align everything and purge non-finite values BEFORE backtest
     df_all = pd.concat(
-        [x.rename("px_x"),
-         y.rename("px_y"),
+        [x.rename("px_x"), y.rename("px_y"),
          kres["beta"].rename("beta"),
          sig.rename("signal")],
         axis=1
@@ -111,13 +107,10 @@ def evaluate_theta(
         return _empty_artifacts()
 
     # 4) Backtest
-    equity, _positions, trades, beta_series, summary = run_backtest(
-        px_x=df_all["px_x"],
-        px_y=df_all["px_y"],
-        beta=df_all["beta"],
-        signal=df_all["signal"],
-        cash_start=cash_start,
-        cash_alloc=cash_alloc
+    equity, _positions, trades, summary = run_backtest(
+        px_x=df_all["px_x"], px_y=df_all["px_y"],
+        beta=df_all["beta"], signal=df_all["signal"],
+        cash_start=cash_start, cash_alloc=cash_alloc
     )
 
     # Guard equity
@@ -130,8 +123,8 @@ def evaluate_theta(
     return {
         "score": score,
         "equity": equity,
-        "beta": beta_series,
-        "spread": pd.Series(dtype=float),
+        "beta": df_all["beta"],
+        "spread": kres.loc[df_all.index, "spread"],  # align to backtest index
         "signal": df_all["signal"],
         "trades": trades,
         "summary": summary
@@ -144,16 +137,23 @@ def grid_search_train(
     train_x: pd.Series,
     train_y: pd.Series,
     # Z thresholds: slightly milder to produce trades without overtrading
-    grid_entry=(2.0, 2.2, 2.5),
-    grid_exit=(0.5, 0.6, 0.7),
+    grid_entry=(1.5, 2.0, 2.5),
+    grid_exit=(0.3, 0.5, 0.8),
     # Kalman noises: larger r for stability, q in a modest range
-    grid_q=(1e-8, 1e-7, 1e-6),
-    grid_r=(1e-2, 2e-2, 5e-2),
+    grid_q=(1e-7, 1e-6, 1e-5),
+    grid_r=(1e-2, 5e-2, 1e-1),
     cash_start: float = 1_000_000.0,
     cash_alloc: float = 0.80,
     z_window: int = 60
 ) -> dict:
-    """Exhaustive grid search on TRAIN."""
+    """
+    Exhaustive grid search on TRAIN.
+    Returns:
+      {
+        'best': {'entry_z':..., 'exit_z':..., 'q':..., 'r':..., 'score':...},
+        'artifacts': { 'equity':..., 'beta':..., 'spread':..., 'signal':..., 'trades':..., 'summary':... }
+      }
+    """
     best = None
     best_artifacts = None
 
@@ -167,9 +167,10 @@ def grid_search_train(
             best = {"entry_z": ez, "exit_z": xz, "q": qv, "r": rv, "score": out["score"]}
             best_artifacts = out
 
-    # Si nada fue válido, devolver un fallback seguro
+    # If nothing scored (all -inf), return a safe fallback to avoid crashes
     if best is None:
         best = {"entry_z": 2.0, "exit_z": 0.5, "q": 1e-5, "r": 1e-2, "score": float("-inf")}
         best_artifacts = _empty_artifacts()
 
     return {"best": best, "artifacts": best_artifacts}
+
