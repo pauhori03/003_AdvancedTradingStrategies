@@ -1,5 +1,5 @@
 # cointegration.py
-# Purpose:
+
 #   - Confirm cointegration among screened pairs using Engle–Granger on TRAIN only
 #   - Project rules:
 #       (1) Each price series is NON-stationary (ADF p > 0.05)

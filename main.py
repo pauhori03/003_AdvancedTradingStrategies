@@ -17,7 +17,7 @@ from plots import (
 )
 
 # Pair to trade (from cointegration.py results)
-X, Y = "PEP", "NSRGY"  # PepsiCo vs. Nestlé
+X, Y = "BK", "SCHW"  # The Bank of New York Mellon Corporation and Charles Schwab Corporation
 
 # ====== 1) Build panel & splits ======
 panel = clean_align_panel(download_adj_close(TICKERS, START, END))

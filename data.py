@@ -12,17 +12,17 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-# -----------------------------
 # Configuration
-# -----------------------------
+
 
 TICKERS = [
-    "KO","PEP","KDP","MNST","PG","CL","KMB","CLX","EL","CHD",
-    "K","GIS","MDLZ","KHC","HSY","CAG","CPB","SJM","HRL","WMT",
-    "COST","TGT","KR","SYY","ADM","TSN","MKC","BF-B","MO","PM",
-    "DEO","TAP","SAM","NSRGY","UL","BUD","NKE","DIS","MCD","SBUX",
-    "YUM","HD","LOW","EBAY","AMZN","WBA","DG","DLTR","TJX","BBY"
+    "JPM","BAC","C","GS","MS","WFC","USB","PNC","BK","SCHW",
+    "XOM","CVX","COP","PSX","BP","SHEL","TTE","EQNR","PBR","ENB",
+    "AAPL","MSFT","GOOG","AMZN","META","NVDA","TSLA","NFLX","ORCL","INTC",
+    "UNH","PFE","JNJ","ABBV","MRK","BMY","LLY","AMGN","CVS","MDT",
+    "NKE","DIS","MCD","SBUX","TGT","COST","PG","CL","KMB","KO"
 ]
+
 
 # 15-year window
 today = date.today()
