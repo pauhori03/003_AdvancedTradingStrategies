@@ -10,11 +10,11 @@ from data import download_adj_close, clean_align_panel, chronological_split, TIC
 from optimize import grid_search_train, evaluate_theta
 from metrics import sharpe, sortino, calmar, max_drawdown, daily_returns, trade_statistics
 from plots import (
-    plot_spread_with_zbands,
-    plot_beta,
     plot_equity_curves,
-    plot_trade_return_hist,
+    plot_kalman_beta,
+    plot_signals
 )
+
 
 # Pair to trade (from cointegration.py results)
 X, Y = "PEP", "NSRGY"  # PepsiCo vs. Nestlé
@@ -73,10 +73,19 @@ report("TEST (OOS)", art_test)
 report("VALID (OOS final)", art_valid)
 
 
-# 2) Equity curves overlay
-plot_equity_curves(art_train["equity"], art_test["equity"], art_valid["equity"],
-                   title="Equity — TRAIN / TEST / VALID")
+# (a) Equity TRAIN/TEST/VALID
+plot_equity_curves(
+    eq_train=art_train["equity"],
+    eq_test=art_test["equity"],
+    eq_valid=art_valid["equity"],
+    title="Equity — TRAIN / TEST / VALID"
+)
 
-plt.show()  # <- show all figures at the end
+# (b) Kalman β_t (VALID)
+plot_kalman_beta(pd.DataFrame({"beta": art_valid["beta"]}))
+
+# (c) Signals sobre precios VALID
+plot_signals(valid_x, valid_y, art_valid["signal"])
+
 
 

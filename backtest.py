@@ -1,11 +1,10 @@
 # backtest.py
-# Step 4 — Simple backtest engine for pairs (market-neutral)
+# Simple backtest engine for pairs (market-neutral)
 # - Inputs: prices X/Y, dynamic hedge beta_t, and signal in {-1,0,+1}
 # - Costs:
 #     * Commission: 0.125% per leg on every trade
 #     * Borrow: 0.25% annual (charged daily) on short notional
 # - Sizing: invest 80% of equity when in a position
-# - Returns: equity curve (Series), positions (DataFrame), trades (DataFrame), summary (dict)
 
 import numpy as np
 import pandas as pd
